@@ -1,0 +1,135 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pylab
+df = pd.read_csv("uber.csv")
+df.info()
+df.head()
+df.describe()
+df = df.drop(["Unnamed: 0","key"],axis=1)
+df.head()
+df.isna()
+df.isna().sum()
+df.dropna(axis=0,inplace=True)
+df.isna().sum()
+df.dtypes
+df.pickup_datetime = pd.to_datetime(df.pickup_datetime)
+df.dtypes
+df.head()
+df['second']=df.pickup_datetime.dt.second
+df['minute']=df.pickup_datetime.dt.minute
+df['hour']=df.pickup_datetime.dt.hour
+df['day']=df.pickup_datetime.dt.day
+df['month']=df.pickup_datetime.dt.month
+df['year']=df.pickup_datetime.dt.year
+df['dayofweek']=df.pickup_datetime.dt.dayofweek
+df=df.drop('pickup_datetime',axis=1)
+df.head()
+df.info()
+df.loc[ (df.pickup_latitude > 90) | (df.pickup_latitude < -90) | (df.dropoff_latitude > 90) | (df.dropoff_latitude < -90) |
+        (df.pickup_longitude > 180) | (df.pickup_longitude < -180) | (df.dropoff_longitude > 90) | (df.dropoff_longitude <-90)
+      ]
+incorrect_coordinates = df.loc[ (df.pickup_latitude > 90) | (df.pickup_latitude < -90) | (df.dropoff_latitude > 90) | (df.dropoff_latitude < -90) |
+        (df.pickup_longitude > 180) | (df.pickup_longitude < -180) | (df.dropoff_longitude > 90) | (df.dropoff_longitude <-90)
+      ]
+df.drop(incorrect_coordinates, inplace = True, errors='ignore')
+def distance_transform(longitude1,latitude1,longitude2,latitude2):
+    long1,lati1,long2,lati2 = map(np.radians,[longitude1,latitude1,longitude2,latitude2])
+    dist_long = long2-long1
+    dist_lati = lati2-lati1
+    a= np.sin(dist_lati/2)**2 + np.cos(lati1) * np.cos(lati2) * np.sin(dist_long/2)**2
+    c= 2*np.arcsin(np.sqrt(a))*6371
+    return c
+df['Distance'] = distance_transform( df['pickup_longitude'], df['pickup_latitude'], df['dropoff_longitude'], df['dropoff_latitude'])
+df.head()
+#
+plt.figure(figsize=(5,3))
+plt.scatter(df['Distance'],df['fare_amount'])
+plt.xlabel('Distance')
+plt.ylabel('fare_amount')
+#
+plt.figure(figsize=(20,12))
+sns.boxplot(data=df)
+#
+df.drop(df[df['Distance'] >= 60].index, inplace=True)
+df.drop(df[df['fare_amount'] <= 0].index, inplace=True)
+df.drop(df[ (df['fare_amount'] > 100) & (df['Distance'] < 1) ].index, inplace=True)
+df.drop(df[ (df['fare_amount'] < 100) & (df['Distance'] >100) ].index, inplace=True)
+#
+plt.scatter(df['Distance'],df['fare_amount'])
+plt.xlabel('Distance')
+plt.ylabel('fare_amount')
+#
+corr= df.corr()
+plt.figure(figsize=(10,6))
+sns.heatmap(corr,annot=True,fmt=".2f")
+#
+corr.style.background_gradient(cmap="BuGn")
+######Linear Regression
+X=df['Distance'].values.reshape(-1,1)
+y=df['fare_amount'].values.reshape(-1,1)
+from sklearn.preprocessing import StandardScaler
+std=StandardScaler()
+y_std=std.fit_transform(y)
+x_std=std.fit_transform(X)
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(x_std,y_std,test_size=0.2,random_state=0)
+from sklearn.linear_model import LinearRegression
+linearModel = LinearRegression()
+linearModel.fit(X_train,y_train)
+print("Training Score :", linearModel.score(X_train,y_train))
+print("Testing Score :", linearModel.score(X_test,y_test))
+y_pred = linearModel.predict(X_test)
+result=pd.DataFrame()
+result[['Actual']]=y_test
+result[['Predicted']]=y_pred
+result.sample(10)
+#
+from sklearn import metrics
+print("Mean Absolute Error: ",metrics.mean_absolute_error(y_test,y_pred))
+print("Mean Absolute % Error: ",metrics.mean_absolute_percentage_error(y_test,y_pred))
+print("Mean Squared Error: ",metrics.mean_squared_error(y_test,y_pred))
+print("Root Mean Squared Error: ",np.sqrt(metrics.mean_squared_error(y_test,y_pred)))
+print("R squared error ",np.sqrt(metrics.r2_score(y_test,y_pred)))
+#
+plt.subplot(2,2,1)
+plt.scatter(X_train,y_train,color='red')
+plt.plot(X_train,linearModel.predict(X_train),color='blue')
+plt.title("Fare Vs Distance (Training Set)")
+plt.xlabel("fare_amount")
+plt.ylabel("distance")
+plt.subplot(2,2,2)
+plt.scatter(X_test,y_test,color='red')
+plt.plot(X_train,linearModel.predict(X_train),color='blue')
+plt.title("Fare Vs Distance (Testing Set)")
+plt.xlabel("fare_amount")
+plt.ylabel("distance")
+#
+metrics_df = pd.DataFrame([['Linear Regression',np.sqrt(metrics.mean_squared_error(y_test,y_pred)),np.sqrt(metrics.r2_score(y_test,y_pred))]],columns = ['Model','RMSE','R-squared'])
+metrics_df
+##########Random Forest
+from sklearn.ensemble import RandomForestRegressor
+RFModel = RandomForestRegressor(n_estimators=100,random_state=10)
+RFModel.fit(X_train,y_train)
+y_pred_RF = RFModel.predict(X_test)
+y_pred_RF=y_pred_RF.reshape(-1,1)
+result=pd.DataFrame()
+result[['Actual']]=y_test
+result[['Predicted']]=y_pred_RF
+result.sample(10)
+#
+from sklearn import metrics
+print("Mean Absolute Error: ",metrics.mean_absolute_error(y_test,y_pred))
+print("Mean Absolute % Error: ",metrics.mean_absolute_percentage_error(y_test,y_pred))
+print("Mean Squared Error: ",metrics.mean_squared_error(y_test,y_pred))
+print("Root Mean Squared Error: ",np.sqrt(metrics.mean_squared_error(y_test,y_pred)))
+print("R squared error ",np.sqrt(metrics.r2_score(y_test,y_pred)))
+#
+plt.scatter(X_test,y_test,c='b',alpha=0.5,marker='.',label="Real")
+plt.scatter(X_test,y_pred_RF,c='r',alpha=0.5,marker='.',label="Predicted")
+plt.legend(loc='lower right')
+plt.show()
+#
+metrics_df = pd.DataFrame([['Random Forest Regression',np.sqrt(metrics.mean_squared_error(y_test,y_pred_RF)),np.sqrt(metrics.r2_score(y_test,y_pred_RF))]],columns = ['Model','RMSE','R-squared'])
+metrics_df

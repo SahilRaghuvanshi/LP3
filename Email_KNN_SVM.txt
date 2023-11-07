@@ -1,0 +1,40 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+#
+df = pd.read_csv("emails.csv")
+df.head()
+#
+df.dtypes
+df.shape
+df.drop( columns = ["Email No."],inplace=True)
+df.head()
+df.isna().sum()
+df.describe()
+X=df.drop(['Prediction'],axis=1)
+y=df['Prediction']
+#####KNN
+from sklearn.model_selection import train_test_split
+X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.3,random_state=43)
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier(n_neighbors=7)
+knn.fit(X_train,y_train)
+#
+y_pred = knn.predict(X_test.values)
+#
+print(y_pred)
+#
+from sklearn import metrics
+print("KNN Accuracy: ",metrics.accuracy_score(y_test,y_pred))
+matrix = metrics.confusion_matrix(y_test,y_pred)
+sns.heatmap(matrix,annot=True)
+######SVM
+from sklearn.svm import SVC
+model = SVC(C=1)
+model.fit(X_train,y_train)
+y_pred=model.predict(X_test)
+matrix=metrics.confusion_matrix(y_test,y_pred)
+matrix
+sns.heatmap(matrix,annot=True)
+print("SVM accuracy :",metrics.accuracy_score(y_test,y_pred))

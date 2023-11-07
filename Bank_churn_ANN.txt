@@ -1,0 +1,73 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+#
+df = pd.read_csv("churn_modelling.csv")
+df.info()
+df.head()
+df=df.drop(['RowNumber','CustomerId','Surname'],axis=1)
+df.isna().sum()
+df.describe()
+df.dtypes
+#
+exited = df[df['Exited']==1]['Tenure']
+not_exited =df[df['Exited']==0]['Tenure']
+plt.figure(figsize=(10,5))
+plt.hist([exited,not_exited],color=['red','green'],label=['exit','not_exit'])
+plt.xlabel("Tenure")
+plt.ylabel("No_of_customers")
+plt.legend()
+#
+exited = df[df['Exited']==1]['Age']
+not_exited =df[df['Exited']==0]['Age']
+plt.figure(figsize=(10,5))
+plt.hist([exited,not_exited],color=['red','green'],label=['exit','not_exit'])
+plt.xlabel("Age")
+plt.ylabel("No_of_customers")
+plt.legend()
+#
+df['Geography'].unique()
+df['Gender'].unique()
+states = pd.get_dummies(df['Geography']).astype(np.uint8)
+gender = pd.get_dummies(df['Gender']).astype(np.uint8)
+df=pd.concat([df,states,gender],axis=1)
+df=df.drop(['Geography'],axis=1)
+df=df.drop(['Gender'],axis=1)
+# 
+df.shape
+X=df.drop(['Exited'],axis=1)
+y=df['Exited']
+from sklearn.model_selection import train_test_split
+X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.3)
+from sklearn.preprocessing import StandardScaler
+sc=StandardScaler()
+X_train=sc.fit_transform(X_train)
+X_test=sc.transform(X_test)
+#
+X_train
+#
+X_test
+####ANN
+import keras
+from keras.models import Sequential 
+from keras.layers import Dense
+classifier = Sequential()
+classifier.add(Dense(activation='relu',units=6,input_dim=13,kernel_initializer='uniform'))
+classifier.add(Dense(activation='relu',units=6,input_dim=13,kernel_initializer='uniform'))
+classifier.add(Dense(activation='sigmoid',units=1,input_dim=13,kernel_initializer='uniform'))
+classifier.compile(optimizer='adam',loss='binary_crossentropy',metrics=['accuracy'])
+classifier.summary()
+#
+classifier.fit(X_train,y_train,batch_size=10,epochs=50)
+#
+y_pred = classifier.predict(X_test)
+#
+y_pred
+y_pred=(y_pred>0.5)
+#
+from sklearn import metrics
+matrix = metrics.confusion_matrix(y_test,y_pred)
+matrix
+sns.heatmap(matrix,annot=True)
+print(metrics.classification_report(y_test,y_pred))
